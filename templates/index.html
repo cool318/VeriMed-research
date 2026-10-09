@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VeriMed (Research Edition) — Clinical Text Grounding &amp; Hallucination Detector</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: #f4f7f8; color: #1c2b33; margin: 0; padding: 0; }
+  header { background: #0f2a36; color: #f4f8f7; padding: 24px 40px; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; overflow: hidden; position: relative; min-height: 70px; }
+  header h1 { margin: 0 0 6px 0; font-size: 22px; }
+  header .badge { display: inline-block; background: #1c6e8c; color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 10px; margin-left: 10px; vertical-align: middle; }
+  header p { margin: 0; color: #a9c4cc; font-size: 14px; max-width: 480px; }
+  .header-left { flex: 0 1 480px; min-width: 240px; }
+
+  /* --- Center: animated ECG pulse strip, pinned to the true horizontal centre of the banner --- */
+  .header-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 260px; height: 46px; overflow: hidden; display: flex; align-items: center; pointer-events: none; }
+  .ecg-track { display: flex; width: 200%; animation: ecg-scroll 1.3s linear infinite; }
+  .ecg-track svg { display: block; flex: 0 0 auto; }
+  .ecg-line { fill: none; stroke: #39ff9d; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px rgba(57,255,157,0.85)); }
+  @keyframes ecg-scroll {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+
+  /* --- Right: swinging open book (being written in) + stethoscope, confined to the far right --- */
+  .header-right { flex: 0 0 auto; display: flex; align-items: flex-end; gap: 12px; margin-left: auto; }
+  .swing-book { transform-origin: 50% 95%; animation: swing 2.8s ease-in-out infinite; overflow: visible; }
+  .swing-stetho { transform-origin: 30% 10%; animation: swing-stetho 2.8s ease-in-out infinite; animation-delay: 0.15s; }
+  @keyframes swing {
+    0%, 100% { transform: rotate(-6deg); }
+    50%      { transform: rotate(6deg); }
+  }
+  @keyframes swing-stetho {
+    0%, 100% { transform: rotate(8deg); }
+    50%      { transform: rotate(-8deg); }
+  }
+
+  /* Pen writing in blue ink, across the full open spread — left page onto right page — in a four-beat loop */
+  .write-line { fill: none; stroke: #1b4f91; stroke-width: 1.8; stroke-linecap: round; animation-duration: 4.4s; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .write-line.l1 { stroke-dasharray: 66; animation-name: write1; animation-delay: 0s; }
+  .write-line.l2 { stroke-dasharray: 60; animation-name: write2; animation-delay: -1.1s; }
+  .write-line.l3 { stroke-dasharray: 68; animation-name: write3; animation-delay: -2.2s; }
+  .write-line.l4 { stroke-dasharray: 56; animation-name: write4; animation-delay: -3.3s; }
+  @keyframes write1 {
+    0%   { stroke-dashoffset: 66; opacity: 1; }
+    18%  { stroke-dashoffset: 0; }
+    82%  { stroke-dashoffset: 0; opacity: 1; }
+    92%  { opacity: 0; }
+    93%  { stroke-dashoffset: 66; opacity: 0; }
+    100% { opacity: 0; }
+  }
+  @keyframes write2 {
+    0%   { stroke-dashoffset: 60; opacity: 1; }
+    18%  { stroke-dashoffset: 0; }
+    82%  { stroke-dashoffset: 0; opacity: 1; }
+    92%  { opacity: 0; }
+    93%  { stroke-dashoffset: 60; opacity: 0; }
+    100% { opacity: 0; }
+  }
+  @keyframes write3 {
+    0%   { stroke-dashoffset: 68; opacity: 1; }
+    18%  { stroke-dashoffset: 0; }
+    82%  { stroke-dashoffset: 0; opacity: 1; }
+    92%  { opacity: 0; }
+    93%  { stroke-dashoffset: 68; opacity: 0; }
+    100% { opacity: 0; }
+  }
+  @keyframes write4 {
+    0%   { stroke-dashoffset: 56; opacity: 1; }
+    18%  { stroke-dashoffset: 0; }
+    82%  { stroke-dashoffset: 0; opacity: 1; }
+    92%  { opacity: 0; }
+    93%  { stroke-dashoffset: 56; opacity: 0; }
+    100% { opacity: 0; }
+  }
+  /* Hand + wrist carrying the pen across the whole spread (left page, over the spine, onto the right page) */
+  .pen-nib { animation: pen-move 4.4s linear infinite; }
+  @keyframes pen-move {
+    0%   { transform: translate(14px, 14px) rotate(-12deg); opacity: 1; }
+    16%  { transform: translate(80px, 14px) rotate(-12deg); opacity: 1; }
+    20%  { transform: translate(80px, 14px) rotate(-12deg); opacity: 0; }
+    25%  { transform: translate(14px, 21px) rotate(-12deg); opacity: 0; }
+    27%  { opacity: 1; }
+    43%  { transform: translate(74px, 21px) rotate(-12deg); opacity: 1; }
+    47%  { transform: translate(74px, 21px) rotate(-12deg); opacity: 0; }
+    52%  { transform: translate(14px, 28px) rotate(-12deg); opacity: 0; }
+    54%  { opacity: 1; }
+    70%  { transform: translate(82px, 28px) rotate(-12deg); opacity: 1; }
+    74%  { transform: translate(82px, 28px) rotate(-12deg); opacity: 0; }
+    79%  { transform: translate(14px, 35px) rotate(-12deg); opacity: 0; }
+    81%  { opacity: 1; }
+    97%  { transform: translate(70px, 35px) rotate(-12deg); opacity: 1; }
+    100% { transform: translate(14px, 14px) rotate(-12deg); opacity: 0; }
+  }
+
+  main { max-width: 1000px; margin: 0 auto; padding: 30px 20px 60px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  label { font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #3d5560; }
+  textarea { width: 100%; height: 200px; margin-top: 6px; padding: 12px; border: 1px solid #cfe0dc; border-radius: 6px; font-size: 14px; font-family: inherit; resize: vertical; }
+  .actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button.primary { background: #1c6e8c; color: white; border: none; padding: 10px 22px; border-radius: 5px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  button.primary:hover { background: #155a72; }
+  .sample-link { font-size: 13px; color: #1c6e8c; cursor: pointer; text-decoration: underline; background: none; border: none; padding: 0; }
+  .results { margin-top: 44px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 2px solid #dbe6e4; margin-bottom: 22px; }
+  .tab-btn { padding: 10px 18px; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600; color: #6b7f87; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .tab-btn.active { color: #0f2a36; border-bottom-color: #1c6e8c; }
+  .tab-panel { display: none; } .tab-panel.active { display: block; }
+  .role-caption { font-size: 12.5px; color: #6b7f87; margin-bottom: 18px; font-style: italic; }
+  .risk-banner { padding: 14px 18px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; }
+  .risk-low { background: #e3f3ec; color: #1a6b45; } .risk-med { background: #fdf1d8; color: #96650a; } .risk-high { background: #fbe4e1; color: #a4322a; }
+  .claim { background: white; border-left: 5px solid #cfe0dc; border-radius: 4px; padding: 14px 18px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .claim.grounded { border-left-color: #2e9e63; } .claim.weak { border-left-color: #d99a1b; } .claim.unverified { border-left-color: #d9483e; }
+  .claim-text { font-size: 14.5px; margin-bottom: 6px; } .claim-meta { font-size: 12.5px; color: #6b7f87; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-right: 8px; }
+  .badge.grounded { background: #d6f0e2; color: #1a6b45; } .badge.weak { background: #fbe9c4; color: #96650a; } .badge.unverified { background: #f8d6d2; color: #a4322a; }
+  .source-match { font-style: italic; color: #4a5d64; margin-top: 4px; }
+  .patient-card { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .patient-card.reassuring { border-top: 4px solid #2e9e63; } .patient-card.caution { border-top: 4px solid #d99a1b; }
+  .patient-card p { font-size: 15px; line-height: 1.6; }
+  .patient-flag-list { margin-top: 14px; padding-left: 18px; } .patient-flag-list li { font-size: 14px; margin-bottom: 6px; color: #4a5d64; }
+  table.audit { width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; }
+  table.audit th { background: #0f2a36; color: white; text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; }
+  table.audit td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #eef2f1; vertical-align: top; }
+  table.audit tr:last-child td { border-bottom: none; }
+  footer { text-align: center; padding: 30px; font-size: 12.5px; color: #8a99a0; }
+  .autofill-note { font-size: 12px; color: #6b7f87; margin-top: 4px; font-style: italic; }
+
+  @media (max-width: 760px) {
+    .header-center { display: none; }
+    .header-right { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>VeriMed <span class="badge">Research Edition</span></h1>
+    <p>The engine described and tested in the accompanying paper — TF-IDF cosine similarity grounding, clause-level atomic decomposition, negation-aware detection, English + Spanish. Paste a source note and a draft summary auto-populates; click Analyze when you're ready to run the fabrication check.</p>
+  </div>
+
+  <div class="header-center" aria-hidden="true">
+    <div class="ecg-track">
+      <svg width="260" height="46" viewBox="0 0 260 46">
+        <path class="ecg-line" d="M0 23 L40 23 L50 23 L58 6 L66 40 L74 14 L82 23 L100 23 L140 23 L150 23 L158 6 L166 40 L174 14 L182 23 L200 23 L260 23" />
+      </svg>
+      <svg width="260" height="46" viewBox="0 0 260 46">
+        <path class="ecg-line" d="M0 23 L40 23 L50 23 L58 6 L66 40 L74 14 L82 23 L100 23 L140 23 L150 23 L158 6 L166 40 L174 14 L182 23 L200 23 L260 23" />
+      </svg>
+    </div>
+  </div>
+
+  <div class="header-right" aria-hidden="true">
+    <svg class="swing-book" width="94" height="54" viewBox="0 0 100 56">
+      <!-- open book -->
+      <path d="M50 9 L10 4 Q6 4 6 8 L6 46 Q6 49 10 49.6 L50 55 Z" fill="#fffdf5" stroke="#f9e7c4" stroke-width="1.3"/>
+      <path d="M50 9 L90 4 Q94 4 94 8 L94 46 Q94 49 90 49.6 L50 55 Z" fill="#fffdf5" stroke="#f9e7c4" stroke-width="1.3"/>
+      <path d="M50 9 L50 55" stroke="#0f2a36" stroke-width="1.2"/>
+      <!-- faint ruled guide line, for paper texture -->
+      <path d="M14 42 L86 42.3" stroke="#e3d9bd" stroke-width="0.8" fill="none"/>
+      <!-- lines being handwritten in blue ink, spanning the whole spread: left page, across the spine, onto the right page -->
+      <path class="write-line l1" d="M14 14 L80 14"/>
+      <path class="write-line l2" d="M14 21 L74 21"/>
+      <path class="write-line l3" d="M14 28 L82 28"/>
+      <path class="write-line l4" d="M14 35 L70 35"/>
+      <!-- wrist, hand and black pen, carried along the line as it writes (tip sits at the group's origin) -->
+      <g class="pen-nib">
+        <!-- sleeve/wrist cuff, in a visible cream tone so it reads against the dark header -->
+        <path d="M-28 -31 Q-20 -36 -13 -30 Q-10 -25 -15 -19 Q-23 -16 -29 -21 Q-33 -26 -28 -31 Z" fill="#f9e7c4" stroke="#c9a86a" stroke-width="0.8"/>
+        <!-- hand gripping the pen -->
+        <ellipse cx="-16" cy="-17" rx="8.5" ry="5.8" fill="#e8b48a" stroke="#c6895a" stroke-width="0.8" transform="rotate(-35 -16 -17)"/>
+        <!-- pen: light halo first so the black body stays visible on the dark background, then the black pen itself -->
+        <line x1="-24" y1="-16.5" x2="0" y2="0" stroke="#f4f8f7" stroke-width="4.4" stroke-linecap="round" opacity="0.55"/>
+        <line x1="-24" y1="-16.5" x2="0" y2="0" stroke="#111318" stroke-width="2.4" stroke-linecap="round"/>
+        <!-- nib, blue ink -->
+        <circle cx="0" cy="0" r="1.5" fill="#1b4f91"/>
+      </g>
+    </svg>
+    <svg class="swing-stetho" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f9e7c4" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 3v5a4 4 0 0 0 4 4v0"/>
+      <path d="M12 3v5a4 4 0 0 1-4 4v0"/>
+      <path d="M8 12v3a5 5 0 0 0 5 5h0.5"/>
+      <circle cx="16.5" cy="19.5" r="2.4" fill="#f9e7c4" stroke="#0f2a36" stroke-width="0.6"/>
+      <circle cx="4" cy="3" r="1.3" fill="#f9e7c4"/>
+      <circle cx="12" cy="3" r="1.3" fill="#f9e7c4"/>
+    </svg>
+  </div>
+</header>
+
+<main>
+  <form method="POST" id="analyzeForm">
+    <div class="grid">
+      <div>
+        <label>Source Clinical Text</label>
+        <textarea name="source_text" id="sourceText" placeholder="Paste the original clinical note, discharge summary, or report here...">{{ source_text }}</textarea>
+      </div>
+      <div>
+        <label>AI-Generated Summary</label>
+        <textarea name="summary_text" id="summaryText" placeholder="Auto-fills from the source when you paste — edit it to introduce an error and test detection.">{{ summary_text }}</textarea>
+        <div class="autofill-note">Auto-populated draft is faithful (no fabrications) — edit it to test the detector.</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary">Analyze Grounding</button>
+      <button type="button" class="sample-link" onclick="loadSample()">Load cardiology example</button>
+      <button type="button" class="sample-link" onclick="loadNeuroSample()">Load neurology example</button>
+      <button type="button" class="sample-link" onclick="loadCodiespSample()">Load real Spanish case (CodiEsp)</button>
+      <label style="font-size:13px; color:#3d5560; margin-left:10px;">
+        <input type="checkbox" name="atomic" {{ 'checked' if atomic else '' }}> Clause-level atomic decomposition + negation check
+      </label>
+      <input type="hidden" name="lang" id="langField" value="{{ lang }}">
+    </div>
+  </form>
+  {% if lang == 'es' %}
+  <p style="font-size:12px; color:#6b7f87; margin-top:8px;">Source: CodiEsp corpus (CLEF eHealth 2020), document S1889-836X2016000100006-1, CC-BY 4.0, retrieved from the original SciELO publication.</p>
+  {% endif %}
+
+  {% if report and role_views %}
+  <div class="results">
+    {% set risk_pct = (report.overall_risk * 100) | round(1) %}
+    <div class="risk-banner {% if report.overall_risk < 0.15 %}risk-low{% elif report.overall_risk < 0.4 %}risk-med{% else %}risk-high{% endif %}">
+      Overall hallucination risk: {{ risk_pct }}% of claims could not be grounded in the source text.
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="clinical" onclick="showTab('clinical')">Clinician View</button>
+      <button class="tab-btn" data-tab="patient" onclick="showTab('patient')">Patient View</button>
+      <button class="tab-btn" data-tab="governance" onclick="showTab('governance')">Governance / Audit View</button>
+    </div>
+    <div class="tab-panel active" id="tab-clinical">
+      <div class="role-caption">Full technical detail — every claim, its grounding score, and the closest matching source sentence.</div>
+      <p style="font-size:13.5px; color:#3d5560; margin-bottom:14px;">{{ role_views.clinical.summary_line }}</p>
+      {% for c in role_views.clinical.claims %}
+      <div class="claim {{ c.flag }}">
+        <div class="claim-text">
+          <span class="badge {{ c.flag }}">{{ c.flag }}</span>
+          {% if c.negation_flagged %}<span class="badge unverified" style="background:#4a1b0c; color:white;">negation check</span>{% endif %}
+          {{ c.claim }}
+        </div>
+        <div class="claim-meta">
+          Similarity to closest source sentence: {{ c.similarity }}
+          {% if c.flag != 'grounded' %}<div class="source-match">Closest match: "{{ c.best_match }}"</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="tab-panel" id="tab-patient">
+      <div class="role-caption">Plain-language summary.</div>
+      <div class="patient-card {{ role_views.patient.tone }}">
+        <p>{{ role_views.patient.message }}</p>
+        {% if role_views.patient.flagged_claims %}
+        <ul class="patient-flag-list">{% for claim in role_views.patient.flagged_claims %}<li>{{ claim }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+    </div>
+    <div class="tab-panel" id="tab-governance">
+      <div class="role-caption">Full traceability log, exportable as PDF.</div>
+      <form method="POST" action="/download-pdf" style="margin-bottom: 16px;">
+        <input type="hidden" name="source_text" value="{{ source_text }}">
+        <input type="hidden" name="summary_text" value="{{ summary_text }}">
+        <button type="submit" class="primary" style="background:#3d5560;">Download Audit Log (PDF)</button>
+      </form>
+      <table class="audit">
+        <thead><tr><th>Claim</th><th>Source Match</th><th>Score</th><th>Flag</th></tr></thead>
+        <tbody>
+          {% for row in role_views.governance.audit_log %}
+          <tr><td>{{ row.claim }}</td><td>{{ row.source_match }}</td><td>{{ row.similarity_score }}</td><td>{{ row.flag }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</main>
+
+<footer>
+  VeriMed (Research Edition) — TF-IDF cosine similarity grounding. No real patient data used; one example (CodiEsp, Spanish) is real published clinical text, others synthetic.<br>
+  This build's exact behaviour is what the accompanying paper describes and tests.
+</footer>
+
+<script>
+function loadSample() {
+  document.getElementById('sourceText').value = {{ sample_source | tojson }};
+  document.getElementById('summaryText').value = {{ sample_summary | tojson }};
+  document.getElementById('langField').value = 'en';
+}
+function loadNeuroSample() {
+  document.getElementById('sourceText').value = {{ neuro_source | tojson }};
+  document.getElementById('summaryText').value = {{ neuro_summary | tojson }};
+  document.querySelector('input[name="atomic"]').checked = true;
+  document.getElementById('langField').value = 'en';
+}
+function loadCodiespSample() {
+  document.getElementById('sourceText').value = {{ codiesp_source | tojson }};
+  document.getElementById('summaryText').value = {{ codiesp_summary | tojson }};
+  document.querySelector('input[name="atomic"]').checked = true;
+  document.getElementById('langField').value = 'es';
+}
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelector('.tab-btn[data-tab="' + name + '"]').classList.add('active');
+}
+
+// Auto-populate draft summary when source text is pasted (debounced)
+let debounceTimer;
+document.getElementById('sourceText').addEventListener('input', function() {
+  clearTimeout(debounceTimer);
+  const sourceVal = this.value;
+  debounceTimer = setTimeout(async () => {
+    if (sourceVal.trim().length < 10) return;
+    if (document.getElementById('summaryText').value.trim().length > 0) return; // don't overwrite user edits
+    const formData = new FormData();
+    formData.append('source_text', sourceVal);
+    formData.append('lang', document.getElementById('langField').value);
+    try {
+      const resp = await fetch('/generate-summary', { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (data.summary) document.getElementById('summaryText').value = data.summary;
+    } catch (e) { console.error('Auto-summary failed:', e); }
+  }, 600);
+});
+</script>
+
+</body>
+</html>
