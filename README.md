@@ -1,11 +1,14 @@
 # VeriMed (Research Edition)
 
-**This is a separate, independently maintained build from any other VeriMed
-app you may have — by design, so the two never conflict.**
+This is the companion build to the research paper, kept in its own repository
+so the paper and the running code never drift apart. It's a separate,
+independently maintained codebase from any other VeriMed app you may be
+running — the two are built for different purposes and are not meant to be
+merged or compared feature-for-feature.
 
 ## Why two builds exist
 
-VeriMed development split into two independent engineering tracks:
+VeriMed development runs along two independent tracks:
 
 - **Your build** (own repo/deployment) — your own detection engine, your own
   design choices, your own roadmap.
@@ -14,10 +17,9 @@ VeriMed development split into two independent engineering tracks:
   Clinical NLP Systems"). Every number in this README, and every score this
   app produces on the bundled examples, matches what the paper reports.
 
-Neither build is "more correct" than the other — they're for different
-purposes. This one exists so the paper's claims and the running code never
-drift apart. Deploy them to separate URLs, under separate names, so there's
-no ambiguity about which is which.
+Neither build is "more correct" than the other — they serve different
+purposes. Deploy them to separate URLs, under separate names, so there's no
+ambiguity about which is which.
 
 ## What's in this build
 
